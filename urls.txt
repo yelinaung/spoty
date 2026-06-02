@@ -1,0 +1,9 @@
+# Spotify URLs — one per line. # lines are ignored.
+# Albums:
+#   https://open.spotify.com/album/...
+# Artist discographies:
+#   https://open.spotify.com/artist/...
+# Playlists:
+#   https://open.spotify.com/playlist/...
+
+https://open.spotify.com/artist/1LZEQNv7sE11VDY3SdxQeN
