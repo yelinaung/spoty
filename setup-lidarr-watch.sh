@@ -1,5 +1,5 @@
 #!/bin/bash
-# Configure Lidarr Torrent Blackhole to auto-import from the _downloads folder
+# Configure Lidarr Torrent Blackhole to auto-import from /downloads/
 # Run ONCE to set up; requires LIDARR_API_KEY
 set -euo pipefail
 
@@ -29,18 +29,18 @@ else
             "implementation": "TorrentBlackhole",
             "configContract": "TorrentBlackholeSettings",
             "fields": [
-                {"name": "torrentFolder",     "value": "/music/_downloads/"},
-                {"name": "watchFolder",       "value": "/music/_downloads/"},
+                {"name": "torrentFolder",     "value": "/downloads/"},
+                {"name": "watchFolder",       "value": "/downloads/"},
                 {"name": "readOnly",          "value": false},
                 {"name": "saveMagnetFiles",   "value": false}
             ]
         }' | python3 -m json.tool
     echo ""
-    echo "Done. Lidarr will now watch /music/_downloads/ for new downloads."
+    echo "Done. Lidarr will now watch /downloads/ for new downloads."
 fi
 
 echo ""
 echo "To trigger a manual scan right now:"
 echo "  curl -X POST '$LIDARR_URL/api/v1/command' \\"
 echo "    -H 'X-Api-Key: $LIDARR_API_KEY' \\"
-echo "    -d '{\"name\":\"DownloadedAlbumsScan\",\"path\":\"/music/_downloads\"}'"
+echo "    -d '{\"name\":\"DownloadedAlbumsScan\",\"path\":\"/downloads\"}'"

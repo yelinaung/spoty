@@ -41,7 +41,7 @@ PROVIDERS="deezer amazon" RETRIES=5 ./spotiflac-bulk.sh urls.txt
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DOWNLOAD_DIR` | `/mnt/music/_downloads` | Output directory |
+| `DOWNLOAD_DIR` | `/home/ubuntu/lidarr-data/_spotiflac` | Output directory |
 | `PROVIDERS` | `deezer qobuz amazon` | Providers in priority order |
 | `QUALITY` | `LOSSLESS` | Download quality |
 | `RETRIES` | `2` | Retry attempts per track |
@@ -51,7 +51,7 @@ PROVIDERS="deezer amazon" RETRIES=5 ./spotiflac-bulk.sh urls.txt
 ## Pipeline
 
 ```
-urls.txt → spotiflac-bulk.sh → /mnt/music/_downloads/ → Lidarr → Navidrome
+urls.txt → spotiflac-bulk.sh → ~/lidarr-data/_spotiflac/ → Lidarr → Navidrome
 ```
 
 - Downloads land in `$DOWNLOAD_DIR` with artist/album subfolders

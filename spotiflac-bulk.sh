@@ -9,7 +9,7 @@ fi
 
 # ── Config ──────────────────────────────────────────────
 URLS_FILE="${1:-urls.txt}"
-DOWNLOAD_DIR="${DOWNLOAD_DIR:-/mnt/music/_downloads}"
+DOWNLOAD_DIR="${DOWNLOAD_DIR:-/home/ubuntu/lidarr-data/_spotiflac}"
 LOG_DIR="${LOG_DIR:-./logs}"
 
 # Providers in priority order (first available wins)
@@ -123,7 +123,7 @@ trigger_lidarr_scan() {
         -X POST "$LIDARR_URL/api/v1/command" \
         -H "X-Api-Key: $LIDARR_API_KEY" \
         -H "Content-Type: application/json" \
-        -d '{"name":"DownloadedAlbumsScan","path":"/music/_downloads"}')
+        -d '{"name":"DownloadedAlbumsScan","path":"/downloads"}')
     if [ "$resp" = "200" ] || [ "$resp" = "201" ]; then
         log "LDR   Lidarr scan triggered OK"
     else
