@@ -51,33 +51,10 @@ url_type() {
     fi
 }
 
-url_slug() {
-    local url="$1"
-    local type="$2"
-    echo "$url" | grep -oP "${type}/\K[^?]+" | head -1
-}
-
 download_url() {
     local url="$1"
     local type
     type=$(url_type "$url")
-    local slug
-    slug=$(url_slug "$url" "$type")
-    local out_dir="$DOWNLOAD_DIR/${type}_$slug"
-
-    # skip if already has flac files
-    if [ -d "$out_dir" ] && find "$out_dir" -name '*.flac' -o -name '*.FLAC' 2>/dev/null | grep -q .; then
-        if [ "$type" = "artist" ]; then
-            # for artist discographies, check if count matches last run
-            local flac_count
-            flac_count=$(find "$out_dir" -name '*.flac' -o -name '*.FLAC' 2>/dev/null | wc -l)
-            log "SKIP  $url  (already downloaded: $flac_count .flac files)"
-        else
-            log "SKIP  $url  (already downloaded)"
-        fi
-        ((skipped++))
-        return 0
-    fi
 
     log "START $url  [$type]"
 
@@ -98,7 +75,7 @@ download_url() {
             ;;
     esac
 
-    spotiflac "$url" "$out_dir" "${extra_args[@]}" >> "$LOG_FILE" 2>&1
+    spotiflac "$url" "$DOWNLOAD_DIR" "${extra_args[@]}" >> "$LOG_FILE" 2>&1
 
     local rc=$?
     if [ $rc -eq 0 ]; then
@@ -117,18 +94,27 @@ trigger_lidarr_scan() {
         log "SKIP  Lidarr scan (no API key set)"
         return 0
     fi
-    log "LDR   Triggering Lidarr scan..."
-    local resp
-    resp=$(curl -s -o /dev/null -w "%{http_code}" \
-        -X POST "$LIDARR_URL/api/v1/command" \
-        -H "X-Api-Key: $LIDARR_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d '{"name":"DownloadedAlbumsScan","path":"/downloads"}')
-    if [ "$resp" = "200" ] || [ "$resp" = "201" ]; then
-        log "LDR   Lidarr scan triggered OK"
-    else
-        log "LDR   Lidarr scan returned HTTP $resp"
-    fi
+    log "LDR   Triggering per-artist Lidarr refresh..."
+    DOWNLOAD_DIR="$DOWNLOAD_DIR" LIDARR_URL="$LIDARR_URL" LIDARR_API_KEY="$LIDARR_API_KEY" \
+        python3 "$SCRIPT_DIR/refresh_lidarr.py" 2>&1 | tee -a "$LOG_FILE"
+}
+
+copy_to_library() {
+    local src="${1:-$DOWNLOAD_DIR}"
+    local dest="/mnt/music"
+    log "COPY  Moving files to library..."
+    local count=0
+    while IFS= read -r -d '' flac; do
+        local artist album
+        artist=$(metaflac --show-tag=ALBUMARTIST "$flac" 2>/dev/null | sed 's/ALBUMARTIST=//')
+        test -z "$artist" && artist=$(metaflac --show-tag=ARTIST "$flac" 2>/dev/null | sed 's/ARTIST=//')
+        album=$(metaflac --show-tag=ALBUM "$flac" 2>/dev/null | sed 's/ALBUM=//')
+        test -z "$artist" -o -z "$album" && continue
+        local target_dir="$dest/$artist/$album"
+        mkdir -p "$target_dir"
+        cp -n "$flac" "$target_dir/" 2>/dev/null && ((count++))
+    done < <(find "$src" -type f \( -name '*.flac' -o -name '*.FLAC' \) -print0 2>/dev/null)
+    log "COPY  Copied $count file(s) to library"
 }
 
 strip_note_tags() {
@@ -169,15 +155,25 @@ while IFS= read -r url; do
     download_url "$url"
 done < "$URLS_FILE"
 
-# ── Cleanup ─────────────────────────────────────────────
-strip_note_tags
+# ── Post-processing ──────────────────────────────────────
+if [ "$success" -gt 0 ]; then
+    log "FIX   Normalizing album tags for Lidarr..."
+    DOWNLOAD_DIR="$DOWNLOAD_DIR" LIDARR_URL="$LIDARR_URL" LIDARR_API_KEY="$LIDARR_API_KEY" \
+        python3 "$SCRIPT_DIR/fix_album_tags.py" 2>&1 | tee -a "$LOG_FILE"
+
+    strip_note_tags
+
+    copy_to_library
+fi
 
 # ── Summary ─────────────────────────────────────────────
 log "========================================="
 log "DONE — $total total | $success OK | $failed failed | $skipped skipped"
 log "========================================="
 
-trigger_lidarr_scan
+if [ "$success" -gt 0 ]; then
+    trigger_lidarr_scan
+fi
 
 if [ $failed -gt 0 ]; then
     log "Failed URLs saved to: $FAILED_FILE"
